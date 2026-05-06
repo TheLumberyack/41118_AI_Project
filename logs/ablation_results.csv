@@ -1,0 +1,7 @@
+opponent,model,win_rate,avg_hp_remaining,avg_latency_ms
+Random agent,CNN alone,0.0000,100.00,0.3242
+Random agent,CNN + LSTM,0.0000,100.00,3.0453
+Aggressive bot,CNN alone,0.0000,100.00,0.3248
+Aggressive bot,CNN + LSTM,0.0000,100.00,3.0478
+Defensive bot,CNN alone,0.0000,100.00,0.3243
+Defensive bot,CNN + LSTM,0.0000,100.00,3.0472
