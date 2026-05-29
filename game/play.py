@@ -103,7 +103,12 @@ def draw_hud(screen, lstm_probs_np, temperature, round_stats, sfont, tfont):
     screen.blit(st, (W // 2 - st.get_width() // 2, H - 40))
 
 
-
+def show_round_end(screen, tfont, winner_text, color):
+    """Flash a winner message in the centre of the screen."""
+    msg = tfont.render(winner_text, True, color)
+    screen.blit(msg, (W // 2 - msg.get_width() // 2, H // 2 - 30))
+    r   = tfont.render("Press R to play again", True, (200, 200, 80))
+    screen.blit(r,   (W // 2 - r.get_width()   // 2, H // 2 + 10))
 
 
 def play(args):
