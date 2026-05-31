@@ -9,16 +9,20 @@ the AI fighter.
 Input  : game_state (batch, FEATURE_DIM=13)
          lstm_probs  (batch, N_ACTIONS=8)
          → concatenated to (batch, 21)
-Output : (batch, N_COUNTER_ACTIONS=12) — raw logits
+Output : (batch, N_COUNTER_ACTIONS=10) — raw logits
+
+RL addition:
+  log_prob(game_state, lstm_probs, action) — returns log probability of a
+  specific action, used by REINFORCE to compute the policy gradient.
 """
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from utils.features import FEATURE_DIM
-from env.fighter_env import N_ACTIONS
+from env.fighter_env import N_ACTIONS, N_AI_ACTIONS
 
-# AI fighter can use all 8 base actions + 4 positional moves (walk L/R + dash)
-N_COUNTER_ACTIONS = N_ACTIONS   # keep same action space for simplicity
+N_COUNTER_ACTIONS = N_AI_ACTIONS        # 10 actions including walk toward/away
 COMBINED_DIM      = FEATURE_DIM + N_ACTIONS   # 13 + 8 = 21
 
 
@@ -65,8 +69,8 @@ class CounterClassifier(nn.Module):
 
     def forward(
         self,
-        game_state:  torch.Tensor,   # (batch, 13)
-        lstm_probs:  torch.Tensor,   # (batch,  8)
+        game_state: torch.Tensor,   # (batch, 13)
+        lstm_probs: torch.Tensor,   # (batch,  8)
     ) -> torch.Tensor:
         """Returns logits of shape (batch, N_COUNTER_ACTIONS)."""
         x = torch.cat([game_state, lstm_probs], dim=-1)   # (batch, 21)
@@ -84,10 +88,37 @@ class CounterClassifier(nn.Module):
         Sample an action from the softmax distribution.
         temperature < 1.0 → sharper (smarter AI)
         temperature > 1.0 → more random (easier AI)
+        Used during gameplay (no gradient tracking needed).
         """
         logits = self.forward(game_state, lstm_probs)
         probs  = torch.softmax(logits / temperature, dim=-1)
         return torch.multinomial(probs, num_samples=1).item()
+
+    def sample_action_with_log_prob(
+        self,
+        game_state: torch.Tensor,   # (1, 13)
+        lstm_probs: torch.Tensor,   # (1,  8)
+    ) -> tuple[int, torch.Tensor]:
+        """
+        Sample an action AND return its log probability.
+        Used during RL training — the log_prob is needed for REINFORCE.
+
+        Returns:
+            action   : int — the sampled action index
+            log_prob : scalar tensor — log P(action | state)
+                       kept in the computation graph so gradients
+                       can flow back through the CNN during backprop.
+        """
+        logits = self.forward(game_state, lstm_probs)      # (1, 10)
+        probs  = torch.softmax(logits, dim=-1)             # (1, 10)
+
+        # Sample from the distribution (exploration)
+        action = torch.multinomial(probs, num_samples=1)   # (1, 1)
+
+        # log_prob of the chosen action — this is what REINFORCE differentiates
+        log_prob = torch.log(probs.squeeze(0)[action.item()] + 1e-8)
+
+        return action.item(), log_prob
 
 
 def build_counter_classifier(device: str = "cpu") -> CounterClassifier:

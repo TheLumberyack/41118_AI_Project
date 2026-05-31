@@ -15,6 +15,7 @@ Usage:
   python game/play.py --temperature 0.5   # harder AI
   python game/play.py --temperature 2.0   # easier AI
   python game/play.py --no-servo          # disable Arduino servo
+  python game/play.py --checkpoint checkpoints/cnn_rl_best.pt  # RL model
 """
 
 import argparse, os, sys, collections
@@ -41,16 +42,21 @@ ACCENT     = (100, 160, 255)
 YELLOW     = (255, 220, 0)
 
 
-def load_models(device):
+def load_models(device, cnn_ckpt="checkpoints/cnn_best.pt"):
     lstm_ckpt = "checkpoints/lstm_best.pt"
-    cnn_ckpt  = "checkpoints/cnn_best.pt"
-    if not os.path.exists(lstm_ckpt) or not os.path.exists(cnn_ckpt):
+    if not os.path.exists(lstm_ckpt):
         raise FileNotFoundError(
-            "Trained model checkpoints not found.\n"
+            "checkpoints/lstm_best.pt not found.\n"
             "Run training first:\n"
             "  python training/collect_data.py\n"
             "  python training/train_lstm.py\n"
             "  python training/train_cnn.py"
+        )
+    if not os.path.exists(cnn_ckpt):
+        raise FileNotFoundError(
+            f"{cnn_ckpt} not found.\n"
+            "For supervised model: python training/train_cnn.py\n"
+            "For RL model:         python training/train_rl.py"
         )
     lstm = MovePredictor().to(device)
     lstm.load_state_dict(torch.load(lstm_ckpt, map_location=device))
@@ -58,6 +64,7 @@ def load_models(device):
 
     cnn = CounterClassifier().to(device)
     cnn.load_state_dict(torch.load(cnn_ckpt, map_location=device))
+    print(f"CNN loaded from: {cnn_ckpt}")
     cnn.eval()
     return lstm, cnn
 
@@ -107,7 +114,7 @@ def show_round_end(screen, tfont, winner_text, color):
 def play(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Loading models on {device}...")
-    lstm_model, cnn_model = load_models(device)
+    lstm_model, cnn_model = load_models(device, cnn_ckpt=args.checkpoint)
 
     # Servo — skips gracefully if Arduino not connected or --no-servo passed
     servo = ServoController() if not args.no_servo else None
@@ -229,4 +236,8 @@ if __name__ == "__main__":
                         help="Softmax temperature: lower=harder, higher=easier")
     parser.add_argument("--no-servo", action="store_true",
                         help="Disable Arduino servo integration")
+    parser.add_argument("--checkpoint", type=str,
+                        default="checkpoints/cnn_best.pt",
+                        help="CNN checkpoint to load (default: supervised). "
+                             "Use checkpoints/cnn_rl_best.pt for RL model.")
     play(parser.parse_args())
