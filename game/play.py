@@ -193,6 +193,24 @@ def play(args):
             # ── Step environment ──────────────────────────────────────────────
             obs, reward, done, truncated, info = env.step(ai_action)
 
+            # ── Round result ──────────────────────────────────────────────────
+            if done:
+                round_stats["round"] += 1
+                if reward < 0:
+                    # Human won — AI died → trigger servo
+                    round_stats["p1_wins"] += 1
+                    winner_text  = "You win!"
+                    winner_color = (80, 200, 120)
+                    if servo:
+                        servo.trigger_death()
+                elif reward > 0:
+                    # AI won
+                    round_stats["ai_wins"] += 1
+                    winner_text  = "AI wins!"
+                    winner_color = (220, 80, 60)
+                else:
+                    winner_text  = "Draw!"
+                    winner_color = (200, 200, 80)
 
             # ── Draw HUD then flip once ───────────────────────────────────────
             # env._render_frame() already drew the game to the surface.
