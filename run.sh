@@ -30,7 +30,7 @@ train_lstm() {
     echo "══════════════════════════════════════════"
     echo "  Step 2a: Training LSTM (Model 1)"
     echo "══════════════════════════════════════════"
-    python3 training/train_lstm.py --epochs 30 --batch 256 --lr 1e-3
+    python3 training/train_lstm.py --epochs 3 --batch 256 --lr 1e-3
 }
 
 train_cnn() {
