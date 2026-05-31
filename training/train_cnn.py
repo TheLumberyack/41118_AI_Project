@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader
 
 from models.cnn_classifier import CounterClassifier
 from training.dataset import CNNDataset, match_split
-from env.fighter_env import N_ACTIONS, ACTION_NAMES
+from env.fighter_env import N_ACTIONS, N_AI_ACTIONS, N_AI_ACTIONS, ACTION_NAMES
 from utils.eval_metrics import (
     compute_f1_macro, confusion_matrix_plot
 )
@@ -104,7 +104,7 @@ def main(args):
         optimizer, max_lr=args.lr * 5,
         steps_per_epoch=len(train_loader), epochs=args.epochs)
 
-    counts  = np.bincount(p2_actions[train_idx], minlength=N_ACTIONS)
+    counts  = np.bincount(p2_actions[train_idx], minlength=N_AI_ACTIONS)
     weights = 1.0 / (counts + 1e-6)
     weights = weights / weights.sum() * N_ACTIONS
     loss_fn = nn.CrossEntropyLoss(
