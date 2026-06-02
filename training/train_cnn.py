@@ -64,7 +64,7 @@ def evaluate(model, loader, loss_fn, device):
         total      += len(lbl)
         all_preds.extend(logits.argmax(1).cpu().numpy())
         all_labels.extend(lbl.cpu().numpy())
-    f1 = compute_f1_macro(all_labels, all_preds, N_ACTIONS)
+    f1 = compute_f1_macro(all_labels, all_preds, N_AI_ACTIONS)
     return total_loss / total, correct / total, f1, \
            np.array(all_labels), np.array(all_preds)
 
@@ -153,7 +153,9 @@ def main(args):
         model, test_loader, loss_fn, device)
     print(f"Test loss: {te_loss:.4f} | acc: {te_acc:.4f} | F1: {te_f1:.4f}")
 
-    action_labels = [ACTION_NAMES[i] for i in range(N_ACTIONS)]
+    action_labels = [ACTION_NAMES.get(i, f"Action{i}") for i in range(N_AI_ACTIONS)]
+    action_labels[8] = "Walk To"
+    action_labels[9] = "Walk Away"
     confusion_matrix_plot(labels, preds, action_labels,
                           save_path="plots/cnn_confusion.png",
                           title="CNN — counter-action confusion matrix")

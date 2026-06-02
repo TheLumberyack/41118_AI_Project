@@ -258,12 +258,12 @@ class FighterEnv:
         self.done        = False
         return self._get_obs(), {}
 
-    def step(self, p2_action: int):
+    def step(self, p2_action: int, p1_action: int = None):
         assert not self.done, "Call reset() after episode ends."
 
         if self.render_mode == "human":
             p1_action = self._read_keyboard()
-        else:
+        elif p1_action is None:
             p1_action = np.random.randint(N_ACTIONS)
 
         self.p1.apply_action(p1_action)

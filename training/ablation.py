@@ -22,18 +22,19 @@ from env.fighter_env import FighterEnv, N_ACTIONS
 from models.lstm_predictor import MovePredictor, SEQ_LEN
 from models.cnn_classifier import CounterClassifier
 from utils.features import extract_features
-from training.collect_data import aggressive_bot, defensive_bot, random_bot
+from training.collect_data import aggressive_bot_ai   as aggressive_bot, \
+                                   defensive_bot_ai   as defensive_bot, \
+                                   random_bot_ai      as random_bot
 
 
-def load_models(device):
+def load_models(device, cnn_ckpt="checkpoints/cnn_rl_best.pt"):
     lstm = MovePredictor().to(device)
     lstm.load_state_dict(torch.load("checkpoints/lstm_best.pt",
                                     map_location=device))
     lstm.eval()
 
     cnn = CounterClassifier().to(device)
-    cnn.load_state_dict(torch.load("checkpoints/cnn_best.pt",
-                                   map_location=device))
+    cnn.load_state_dict(torch.load(cnn_ckpt, map_location=device))
     cnn.eval()
     return lstm, cnn
 
@@ -72,14 +73,15 @@ def run_episodes(use_lstm, lstm, cnn, p1_bot, n_rounds, device,
 
             game_state = torch.tensor(feat, dtype=torch.float32,
                                       device=device).unsqueeze(0)
-            action = cnn.predict_action(game_state, lstm_probs,
-                                        temperature=temperature)
+            ai_action  = cnn.predict_action(game_state, lstm_probs,
+                                            temperature=temperature)
             latency_ms = (time.perf_counter() - t0) * 1000
             latencies.append(latency_ms)
 
-            obs, reward, done, _, _ = env.step(action)
+            p1_action = p1_bot(obs)
+            obs, reward, done, _, _ = env.step(ai_action, p1_action)
 
-        if reward > 0:   # AI won
+        if obs["p2_health"] > obs["p1_health"]:   # AI (P2) won
             wins += 1
         health_remaining.append(obs["p2_health"])
 
@@ -89,7 +91,7 @@ def run_episodes(use_lstm, lstm, cnn, p1_bot, n_rounds, device,
 
 def main(args):
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    lstm, cnn = load_models(device)
+    lstm, cnn = load_models(device, cnn_ckpt=args.checkpoint)
 
     bots = [
         ("Random agent",    random_bot),
@@ -139,5 +141,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rounds", type=int, default=100)
+    parser.add_argument("--rounds",     type=int, default=100)
+    parser.add_argument("--checkpoint", type=str,
+                        default="checkpoints/cnn_rl_best.pt",
+                        help="CNN checkpoint to evaluate (default: RL-trained)")
     main(parser.parse_args())

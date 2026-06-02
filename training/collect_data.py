@@ -17,14 +17,16 @@ import numpy as np
 import sys, os
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
-from env.fighter_env import FighterEnv, N_ACTIONS, IDLE, PUNCH, KICK, BLOCK, JUMP, CROUCH, SPECIAL_A, SPECIAL_B
+from env.fighter_env import FighterEnv, N_ACTIONS, N_AI_ACTIONS, IDLE, PUNCH, KICK, BLOCK, JUMP, CROUCH, SPECIAL_A, SPECIAL_B, WALK_TOWARD, WALK_AWAY
 from utils.features import extract_features
 
 
 # ── Scripted bots ─────────────────────────────────────────────────────────────
+# P1 bots: human-style actions only (0–7, no walking — LSTM predicts these)
+# P2 bots: full AI actions (0–9, including WALK_TOWARD/WALK_AWAY)
 
-def aggressive_bot(obs):
-    """Attacks whenever in range, jumps to close distance."""
+def aggressive_bot_human(obs):
+    """P1 human-style: attacks in range, jumps to close distance."""
     dist = obs["distance"]
     if dist < 80:
         return np.random.choice([PUNCH, KICK, SPECIAL_A], p=[0.4, 0.4, 0.2])
@@ -32,8 +34,8 @@ def aggressive_bot(obs):
         return np.random.choice([PUNCH, SPECIAL_B], p=[0.6, 0.4])
     return JUMP
 
-def defensive_bot(obs):
-    """Blocks often, retaliates with specials."""
+def defensive_bot_human(obs):
+    """P1 human-style: blocks often, retaliates with specials."""
     dist = obs["distance"]
     hp   = obs["p1_health"] if "p1_health" in obs else 100
     if hp < 30:
@@ -42,17 +44,52 @@ def defensive_bot(obs):
         return np.random.choice([BLOCK, PUNCH], p=[0.6, 0.4])
     return np.random.choice([CROUCH, IDLE], p=[0.5, 0.5])
 
-def combo_bot(obs):
-    """Spams combo-like sequences."""
+def combo_bot_human(obs):
+    """P1 human-style: spams combo-like sequences."""
     return np.random.choice(
         [PUNCH, KICK, SPECIAL_A, IDLE],
         p=[0.35, 0.35, 0.2, 0.1]
     )
 
-def random_bot(obs):
+def random_bot_human(obs):
+    """P1 human-style: random from 0–7 only."""
     return np.random.randint(N_ACTIONS)
 
-BOTS = [aggressive_bot, defensive_bot, combo_bot, random_bot]
+# P2 AI bots — use full action space including walking
+def aggressive_bot_ai(obs):
+    """P2 AI-style: walks to close distance, attacks in range."""
+    dist = obs["distance"]
+    if dist < 80:
+        return np.random.choice([PUNCH, KICK, SPECIAL_A], p=[0.4, 0.4, 0.2])
+    if dist < 160:
+        return np.random.choice([PUNCH, SPECIAL_B, WALK_TOWARD], p=[0.4, 0.3, 0.3])
+    return np.random.choice([WALK_TOWARD, JUMP], p=[0.8, 0.2])
+
+def defensive_bot_ai(obs):
+    """AI-style: blocks, retaliates, retreats when threatened. Uses distance only so works as P1 or P2."""
+    dist = obs["distance"]
+    if dist < 100:
+        return np.random.choice([BLOCK, PUNCH, WALK_AWAY], p=[0.5, 0.3, 0.2])
+    return np.random.choice([WALK_TOWARD, CROUCH, IDLE], p=[0.4, 0.3, 0.3])
+
+def combo_bot_ai(obs):
+    """P2 AI-style: walks into range then combos."""
+    dist = obs["distance"]
+    if dist > 150:
+        return np.random.choice([WALK_TOWARD, WALK_AWAY], p=[0.8, 0.2])
+    return np.random.choice(
+        [PUNCH, KICK, SPECIAL_A, WALK_TOWARD, IDLE],
+        p=[0.30, 0.30, 0.15, 0.15, 0.10]
+    )
+
+def random_bot_ai(obs):
+    """P2 AI-style: random from full 0–9 action space."""
+    return np.random.randint(N_AI_ACTIONS)
+
+P1_BOTS = [aggressive_bot_human, defensive_bot_human,
+           combo_bot_human,      random_bot_human]
+P2_BOTS = [aggressive_bot_ai,   defensive_bot_ai,
+           combo_bot_ai,         random_bot_ai]
 
 
 # ── Collection loop ───────────────────────────────────────────────────────────
@@ -71,9 +108,10 @@ def collect(num_matches: int, seed: int, out_dir: str):
     print(f"Collecting {num_matches} matches...")
 
     for match_idx in range(num_matches):
-        # Randomly pair two bots
-        p1_bot = np.random.choice(BOTS)
-        p2_bot = np.random.choice(BOTS)
+        # P1 uses human-style bots (actions 0–7, for LSTM training)
+        # P2 uses AI-style bots (actions 0–9, for CNN training)
+        p1_bot = np.random.choice(P1_BOTS)
+        p2_bot = np.random.choice(P2_BOTS)
 
         obs, _ = env.reset()
         done   = False
@@ -88,7 +126,7 @@ def collect(num_matches: int, seed: int, out_dir: str):
             all_p1_actions.append(p1_action)
             all_p2_actions.append(p2_action)
 
-            obs, _, done, _, info = env.step(p2_action)
+            obs, _, done, _, info = env.step(p2_action, p1_action)
             match_frames += 1
 
         match_boundaries.append(len(all_features))
@@ -114,9 +152,10 @@ def collect(num_matches: int, seed: int, out_dir: str):
     print(f"Files written to: {out_dir}/")
     print(f"\nAction distribution (P1):")
     from env.fighter_env import ACTION_NAMES
-    for a in range(N_ACTIONS):
+    action_names_full = {**ACTION_NAMES, 8: "Walk Toward", 9: "Walk Away"}
+    for a in range(N_AI_ACTIONS):
         cnt = (p1_actions == a).sum()
-        print(f"  {ACTION_NAMES[a]:12s}: {cnt:6d}  ({100*cnt/len(p1_actions):.1f}%)")
+        print(f"  {action_names_full[a]:12s}: {cnt:6d}  ({100*cnt/len(p1_actions):.1f}%)")
 
 
 if __name__ == "__main__":

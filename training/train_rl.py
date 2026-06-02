@@ -41,11 +41,13 @@ from utils.features import extract_features
 
 
 # ── Reward constants ──────────────────────────────────────────────────────────
-REWARD_DAMAGE_SCALE = 0.1    # per HP point dealt / received
-REWARD_WIN          =  5.0
-REWARD_LOSS         = -5.0
-REWARD_DRAW         =  0.0
-GAMMA               = 0.99   # discount factor for future rewards
+REWARD_DAMAGE_SCALE   = 0.1     # per HP point dealt / received
+REWARD_WIN            =  5.0
+REWARD_LOSS           = -5.0
+REWARD_DRAW           =  0.0
+GAMMA                 = 0.99    # discount factor for future rewards
+REWARD_APPROACH_SCALE = 0.003   # reward per pixel closed toward opponent
+REWARD_IDLE_PENALTY   = -0.005  # small penalty for idling
 
 
 # ── Agent — wraps LSTM + CNN for one player ───────────────────────────────────
@@ -147,11 +149,19 @@ class RLAgent:
         maximise expected return. Multiplying by G_t means:
           - Positive return → increase log_prob → make action more likely
           - Negative return → decrease log_prob → make action less likely
+
+        Note: episode_rewards has one extra terminal reward appended after
+        the loop (win/loss/draw), so we truncate returns to match log_probs.
         """
         returns   = self.compute_returns()
         log_probs = torch.stack(self.episode_log_probs)
 
-        # Both tensors are shape (T,) where T = episode length
+        # Truncate returns to match log_probs length (terminal reward has
+        # no corresponding action, so we drop the last return entry)
+        min_len = min(len(log_probs), len(returns))
+        log_probs = log_probs[:min_len]
+        returns   = returns[:min_len]
+
         loss = -(log_probs * returns).mean()
         return loss
 
@@ -159,11 +169,17 @@ class RLAgent:
 # ── Frame-level reward ────────────────────────────────────────────────────────
 
 def compute_frame_reward(obs_before: dict, obs_after: dict,
-                         player: str) -> float:
+                         player: str, action: int) -> float:
     """
-    Reward for one frame based on health changes.
+    Reward for one frame.
+    - Damage dealt/received (main signal)
+    - Approach reward: closing distance toward opponent
+    - Idle penalty: discourage doing nothing
+    obs_before and obs_after are raw env observation dicts (not feature arrays).
     player = 'p1' or 'p2'
     """
+    from env.fighter_env import IDLE as IDLE_ACTION
+
     if player == "p1":
         hp_dealt    = obs_before["p2_health"] - obs_after["p2_health"]
         hp_received = obs_before["p1_health"] - obs_after["p1_health"]
@@ -171,7 +187,17 @@ def compute_frame_reward(obs_before: dict, obs_after: dict,
         hp_dealt    = obs_before["p1_health"] - obs_after["p1_health"]
         hp_received = obs_before["p2_health"] - obs_after["p2_health"]
 
-    return (max(0.0, hp_dealt) - max(0.0, hp_received)) * REWARD_DAMAGE_SCALE
+    damage_reward = (max(0.0, hp_dealt) - max(0.0, hp_received)) * REWARD_DAMAGE_SCALE
+
+    # Approach reward — raw pixel distance, reward closing the gap
+    dist_before     = obs_before["distance"]
+    dist_after      = obs_after["distance"]
+    approach_reward = (dist_before - dist_after) * REWARD_APPROACH_SCALE
+
+    # Idle penalty
+    idle_penalty = REWARD_IDLE_PENALTY if action == IDLE_ACTION else 0.0
+
+    return damage_reward + approach_reward + idle_penalty
 
 
 # ── Self-play episode ─────────────────────────────────────────────────────────
@@ -194,20 +220,19 @@ def run_episode(env: FighterEnv,
     p2_damage     = 0.0
 
     while not done:
-        obs_before = dict(obs)
+        obs_before = {k: v for k, v in obs.items()}  # snapshot before step
 
         # Both agents select actions simultaneously
         p1_action = agent1.select_action(obs)
         p2_action = agent2.select_action(obs)
 
-        # Step with P2's action (env reads P1 from keyboard in human mode,
-        # but in RL mode we pass P2 action and override P1 internally)
-        obs, env_reward, done, truncated, info = env.step(p2_action)
+        # Step environment with both agents' actions
+        obs, env_reward, done, truncated, info = env.step(p2_action, p1_action)
 
         # We need P1 to also act — patch: rebuild obs for P1 perspective
         # The env already stepped, so we compute frame rewards from health delta
-        frame_r1 = compute_frame_reward(obs_before, obs, "p1")
-        frame_r2 = compute_frame_reward(obs_before, obs, "p2")
+        frame_r1 = compute_frame_reward(obs_before, obs, "p1", p1_action)
+        frame_r2 = compute_frame_reward(obs_before, obs, "p2", p2_action)
 
         p1_damage += max(0, obs_before["p2_health"] - obs["p2_health"])
         p2_damage += max(0, obs_before["p1_health"] - obs["p1_health"])

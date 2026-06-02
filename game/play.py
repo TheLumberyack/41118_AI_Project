@@ -103,7 +103,19 @@ def draw_hud(screen, lstm_probs_np, temperature, round_stats, sfont, tfont):
     screen.blit(st, (W // 2 - st.get_width() // 2, H - 40))
 
 
+def show_round_end(screen, tfont, winner_text, winner_color):
+    """Overlay a round-end message in the centre of the screen."""
+    overlay = pygame.Surface((W, H), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, 140))
+    screen.blit(overlay, (0, 0))
 
+    msg = tfont.render(winner_text, True, winner_color)
+    screen.blit(msg, (W // 2 - msg.get_width() // 2,
+                      H // 2 - msg.get_height() // 2 - 20))
+
+    sfont = pygame.font.SysFont("monospace", 14)
+    hint  = sfont.render("Press  R  to play again", True, (200, 200, 200))
+    screen.blit(hint, (W // 2 - hint.get_width() // 2, H // 2 + 20))
 
 
 def play(args):
@@ -196,15 +208,13 @@ def play(args):
             # ── Round result ──────────────────────────────────────────────────
             if done:
                 round_stats["round"] += 1
-                if reward < 0:
-                    # Human won — AI died → trigger servo
+                if obs["p1_health"] > obs["p2_health"]:
                     round_stats["p1_wins"] += 1
                     winner_text  = "You win!"
                     winner_color = (80, 200, 120)
                     if servo:
                         servo.trigger_death()
-                elif reward > 0:
-                    # AI won
+                elif obs["p2_health"] > obs["p1_health"]:
                     round_stats["ai_wins"] += 1
                     winner_text  = "AI wins!"
                     winner_color = (220, 80, 60)
