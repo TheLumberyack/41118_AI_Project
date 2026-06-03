@@ -793,46 +793,16 @@
     <h2 class="section-title">Project <span class="muted">Video</span></h2>
     <div class="divider"></div>
 
-    <!-- ─────────────────────────────────────────────────────────────
-         INSTRUCTIONS: Replace one of the two options below.
-
-         OPTION A — YouTube embed:
-           Uncomment the iframe block and replace VIDEO_ID with your
-           YouTube video ID (the part after ?v= in the URL).
-
-         OPTION B — Local video file:
-           Replace ./static/videos/demo.mp4 with your video file path.
-           The placeholder div will be replaced when the src is valid.
-    ──────────────────────────────────────────────────────────────── -->
-
     <div class="video-wrapper">
 
-      <!-- OPTION A: YouTube — uncomment and add your video ID
-      <iframe
-        src="https://www.youtube.com/embed/YOUR_VIDEO_ID?rel=0&showinfo=0"
-        frameborder="0"
-        allow="autoplay; encrypted-media"
-        allowfullscreen>
-      </iframe>
-      -->
-
-      <!-- OPTION B: Local/direct video file -->
-      <video controls preload playsinline>
-        <source src="./static/videos/demo.mp4" type="video/mp4">
-        <!-- Fallback placeholder shown if file not found -->
+      <video controls preload="metadata" playsinline style="width:100%;display:block;border:none;aspect-ratio:16/9;">
+        <source src="footage/FinalVid_2.mp4" type="video/mp4">
         Your browser does not support the video tag.
       </video>
-
-      <!-- Placeholder shown until you add a video — remove this div once video is added -->
-      <div class="video-placeholder" id="video-placeholder">
-        <i class="fas fa-film"></i>
-        <p>REPLACE WITH YOUR TEASER VIDEO</p>
-        <p style="font-size:.65rem; opacity:.6;">See comments in HTML for YouTube or local file options</p>
-      </div>
     </div>
 
     <p style="margin-top:1rem; font-size:.85rem; text-align:center;">
-      Teaser video demonstrating the LSTM prediction HUD, live gameplay, and Arduino servo response.
+      Final project video demonstrating the LSTM prediction HUD, live gameplay, and Arduino servo response.
     </p>
   </div>
 </section>
