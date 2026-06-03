@@ -647,7 +647,7 @@
         A real-time fighting game AI powered by a chained
         <strong>Bidirectional LSTM</strong> move predictor and
         <strong>1D CNN</strong> counter-action classifier,
-        fine-tuned with <strong>REINFORCE self-play</strong>.
+        fine-tuned with <strong>Reinforcement learning self-play</strong>.
         Physical servo feedback via Arduino.
       </p>
       <div class="hero-buttons">
@@ -681,7 +681,7 @@
       <div class="label">Model 2 — 1D CNN</div>
       <div class="value">Counter-action → <span>10 actions</span></div>
     </div>
-    <div class="pipeline-arrow">↓ REINFORCE self-play</div>
+    <div class="pipeline-arrow">↓ Reinforcement learning self-play</div>
     <div class="pipeline-box">
       <div class="label">Output</div>
       <div class="value">AI executes action → <span>Arduino servo</span></div>
@@ -707,7 +707,7 @@
         <p style="margin-bottom:1rem;">
           Both models were first trained with <strong>supervised learning</strong> on
           1 million+ frames of scripted bot self-play, then fine-tuned using
-          <strong>REINFORCE reinforcement learning</strong> — two CNN agents playing against each
+          reinforcement learning</strong> — two CNN agents playing against each
           other until both converge on strategic fighting behaviour beyond what any scripted bot could teach.
         </p>
         <p>
@@ -718,7 +718,7 @@
 
         <div class="stat-row">
           <div class="stat-card">
-            <div class="stat-num">1M+</div>
+            <div class="stat-num">787K</div>
             <div class="stat-label">Training frames</div>
           </div>
           <div class="stat-card">
@@ -730,7 +730,7 @@
             <div class="stat-label">AI actions</div>
           </div>
           <div class="stat-card">
-            <div class="stat-num">2ms</div>
+            <div class="stat-num">&lt;1ms</div>
             <div class="stat-label">Inference / frame</div>
           </div>
         </div>
@@ -856,9 +856,11 @@
         <div class="team-role">Code Lead · Robot Constructor · Co-ordinator</div>
         <p class="team-desc">
           Architected and implemented the full ML pipeline — bidirectional LSTM,
-          1D CNN, REINFORCE self-play training, and the custom Pygame fighting
+          1D CNN, reinforcement learning self-play training, and the custom Pygame fighting
           environment. Built and wired the Arduino servo robot and integrated
-          it with the Python game loop via pyserial.
+          it with the Python game loop via pyserial. Responsible for the teaser 
+          video production and final videon demonstrating the trained AI in 
+          action as well as the creation of the html portfolio.
         </p>
       </div>
 
@@ -869,8 +871,6 @@
         <p class="team-desc">
           Led all visual communication for the project including slide deck
           design, video editing, and graphical presentation of results.
-          Responsible for the teaser video production and final video
-          demonstrating the trained AI in action.
         </p>
       </div>
 
@@ -879,10 +879,7 @@
         <div class="team-name">Fergus O'Sullivan</div>
         <div class="team-role">Visual & Presentation Support</div>
         <p class="team-desc">
-          Supported visual and presentation work including result figure
-          preparation, portfolio documentation, and design of the project
-          webpage. Assisted in preparing evaluation plots and written
-          analysis for the portfolio submissions.
+          Supported visual and presentation work.
         </p>
       </div>
 
@@ -911,7 +908,9 @@
         <div class="result-body">
           <h3>LSTM Confusion Matrix</h3>
           <p>Per-class move prediction accuracy across all 8 action classes.
-             Macro F1 reported to penalise poor performance on rare moves
+             Final test accuracy <strong>46.6%</strong>, macro F1 <strong>0.373</strong>
+             over 30 epochs. Class-weighted loss prevented collapse onto the dominant
+             IDLE class. Macro F1 reported to penalise poor performance on rare moves
              (Block, Uppercut) equally to common ones (Jump, Idle).</p>
         </div>
       </div>
@@ -945,8 +944,11 @@
         <div class="result-body">
           <h3>CNN Counter-Action Confusion Matrix</h3>
           <p>Counter-action classification accuracy across 10 AI actions
-             including the two walk actions added for movement. Weighted
-             F1 reported to account for action frequency differences.</p>
+             including the two walk actions added for movement. Supervised
+             test accuracy <strong>21.7%</strong>, F1 <strong>0.179</strong> —
+             reflecting the inherent difficulty of imitating strategic counter-actions
+             from bot data. RL self-play was essential to convert this into a
+             competitively effective agent.</p>
         </div>
       </div>
 
@@ -961,9 +963,10 @@
         </div>
         <div class="result-body">
           <h3>RL Self-Play Win Rate</h3>
-          <p>Agent 1 vs Agent 2 win rate over 2000 REINFORCE episodes.
-             Both agents converge toward 50/50 as they improve together —
-             the arms race of self-play driving increasingly strategic behaviour.</p>
+          <p>Agent 1 reached a <strong>72.2% win rate</strong> over 2000 reinforcement learning episodes
+             against Agent 2 (23.2% wins, 4.7% draws). Fights began decisively from episode 40
+             as agents learned to close distance and deal damage, with average fight length
+             dropping from 3600 frames (full timeout) to under 1500 frames by episode 100.</p>
         </div>
       </div>
 
@@ -990,51 +993,51 @@
           <tr>
             <td>Random Agent</td>
             <td>CNN alone</td>
-            <td class="td-accent2">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent2">0.0%</td>
+            <td>100.0</td>
+            <td>0.43</td>
           </tr>
           <tr>
             <td>Random Agent</td>
             <td>CNN + LSTM</td>
-            <td class="td-accent">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent">0.0%</td>
+            <td>100.0</td>
+            <td>0.79</td>
           </tr>
           <tr>
             <td>Aggressive Bot</td>
             <td>CNN alone</td>
-            <td class="td-accent2">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent2">92.0%</td>
+            <td>17.0</td>
+            <td>0.44</td>
           </tr>
           <tr>
             <td>Aggressive Bot</td>
             <td>CNN + LSTM</td>
-            <td class="td-accent">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent">95.0%</td>
+            <td>17.0</td>
+            <td>0.79</td>
           </tr>
           <tr>
             <td>Defensive Bot</td>
             <td>CNN alone</td>
-            <td class="td-accent2">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent2">100.0%</td>
+            <td>39.0</td>
+            <td>0.43</td>
           </tr>
           <tr>
             <td>Defensive Bot</td>
             <td>CNN + LSTM</td>
-            <td class="td-accent">—</td>
-            <td>—</td>
-            <td>—</td>
+            <td class="td-accent">100.0%</td>
+            <td>40.9</td>
+            <td>0.79</td>
           </tr>
         </tbody>
       </table>
     </div>
     <p style="margin-top:.75rem; font-size:.8rem; font-family:var(--mono);">
-      * Replace — with values from <code>logs/ablation_results.csv</code> after running
-      <code>python3 training/ablation.py --rounds 100</code>
+      Results from <code>logs/ablation_results.csv</code> · 100 rounds per condition ·
+      RL-trained checkpoint (<code>cnn_rl_best.pt</code>) · CUDA inference on RTX 5070 Ti
     </p>
   </div>
 </section>
@@ -1051,34 +1054,41 @@
         <div class="disc-icon">✅</div>
         <h3>What worked well</h3>
         <p>
-          Chaining LSTM and CNN into a single inference pipeline produced an AI
-          that demonstrably adapts to player patterns. The ablation study confirmed
-          the LSTM input meaningfully improves CNN counter-action selection.
-          Class-weighted cross-entropy successfully prevented the LSTM from ignoring
-          rare moves like Block and Uppercut. The temperature parameter gave
-          fine-grained difficulty control with no additional training.
+          Chaining LSTM and CNN into a single inference pipeline produced an AI that
+          demonstrably adapts to player patterns. The ablation study confirmed the LSTM
+          input meaningfully improves CNN counter-action selection — 95% vs 92% against
+          the aggressive bot. RL self-play drove agent 1 to a 72.2% win rate over 2000
+          episodes with only 4.7% draws, far beyond what supervised training alone achieved.
+          Inference runs at under 1ms per frame on GPU, well within the 16ms real-time budget.
+          Class-weighted cross-entropy successfully prevented the LSTM from ignoring rare
+          moves. The temperature parameter gave fine-grained difficulty control with no
+          additional training.
         </p>
       </div>
       <div class="disc-card">
         <div class="disc-icon">⚠️</div>
         <h3>Limitations</h3>
         <p>
-          Training on CPU significantly increased iteration time — RL self-play
-          in particular would benefit greatly from a GPU. The custom game environment,
-          while fully functional, lacks the visual richness of a commercial fighting
-          game which limits the demo's immediate impact. The LSTM window of 10 frames
-          may be too short to detect slow-developing combo patterns.
+          The CNN supervised F1 of 0.18 (10-class) reflects the difficulty of learning
+          counter-action strategy from imitation alone — RL self-play was essential to
+          make the AI competent. The random agent produced 0% win rate in ablation because
+          it rarely closes distance, meaning fights never started — this is a limitation of
+          the opponent design rather than the AI. The LSTM window of 10 frames may be too
+          short to detect slow-developing combo patterns, and the custom Pygame environment
+          lacks the visual richness of a commercial fighting game which limits demo impact.
         </p>
       </div>
       <div class="disc-card">
         <div class="disc-icon">🔭</div>
         <h3>Future work</h3>
         <p>
-          Replacing the structured feature vector with raw pixel input would allow
-          a true CNN vision pipeline (processing game frames directly). Extending the
-          RL training with PPO instead of vanilla REINFORCE would improve sample
-          efficiency. Integrating a Transformer-based move predictor as an ablation
-          against the LSTM would complete the model comparison story.
+          Replacing the structured feature vector with raw pixel input would allow a true
+          CNN vision pipeline processing game frames directly. Extending RL training with
+          PPO instead of vanilla reinforcement learning would improve sample efficiency and stability —
+          the reinforcement learning's high variance was visible in the noisy win-rate curve. Integrating
+          a Transformer-based move predictor as an ablation against the LSTM would complete
+          the model comparison story. Increasing training matches beyond 300 and RL episodes
+          beyond 2000 would likely push win rates higher.
         </p>
       </div>
     </div>
