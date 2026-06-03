@@ -42,7 +42,6 @@ fighter_ai/
 ### 1. Install dependencies
 
 ```bash
-# From inside the fighter_ai/ directory
 pip install -r requirements.txt
 ```
 
@@ -52,11 +51,13 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 pip install numpy pygame scikit-learn matplotlib
 ```
 
-PyTorch GPU install (CUDA 12.1):
+PyTorch GPU install (CUDA 12.8 — required for RTX 40/50 series):
 ```bash
-pip install torch --index-url https://download.pytorch.org/whl/cu121
+pip install torch --index-url https://download.pytorch.org/whl/cu128
 pip install numpy pygame scikit-learn matplotlib
 ```
+
+> **Windows note:** Use `py -3.12` instead of `python` if you have multiple Python versions installed. Python 3.12 is required — Python 3.14 is not yet supported by pygame.
 
 ### 2. Run the full pipeline with one command
 
@@ -64,20 +65,23 @@ pip install numpy pygame scikit-learn matplotlib
 bash run.sh
 ```
 
-This runs all four steps in order:
+This runs all steps in order:
 1. Collect training data (bot matches)
 2. Train the LSTM (Model 1)
-3. Train the CNN (Model 2)
-4. Run the ablation study
-5. Launch the game
+3. Train the CNN supervised (Model 2)
+4. RL self-play fine-tuning (2000 episodes)
+5. Run the ablation study
+6. Launch the game with RL model
 
 Or run each step individually:
 
 ```bash
 bash run.sh collect    # Step 1: generate data (~2 min, 300 matches)
-bash run.sh train      # Step 2: train both models (~10–20 min CPU)
-bash run.sh ablation   # Step 3: HD evaluation (100 rounds each)
-bash run.sh play       # Step 4: play the game
+bash run.sh train      # Step 2: train LSTM + CNN supervised
+bash run.sh rl         # Step 3: RL self-play (~20-40 min)
+bash run.sh ablation   # Step 4: HD evaluation (100 rounds each)
+bash run.sh play       # Step 5: play with supervised model
+bash run.sh play-rl    # Step 5: play with RL-trained model
 ```
 
 ---
@@ -188,13 +192,17 @@ Example output:
 ```
 Opponent           Model          Win %   HP left   ms/frame
 ──────────────────────────────────────────────────────────────
-Random agent       CNN alone      61.0%      42.3       0.82
-Random agent       CNN + LSTM     74.0%      51.7       1.14
-Aggressive bot     CNN alone      48.0%      28.1       0.83
-Aggressive bot     CNN + LSTM     59.0%      35.4       1.15
-Defensive bot      CNN alone      55.0%      38.9       0.81
-Defensive bot      CNN + LSTM     67.0%      44.2       1.13
+Random agent       CNN alone       0.0%     100.0       0.43
+Random agent       CNN + LSTM      0.0%     100.0       0.79
+Aggressive bot     CNN alone      92.0%      17.0       0.44
+Aggressive bot     CNN + LSTM     95.0%      17.0       0.79
+Defensive bot      CNN alone     100.0%      39.0       0.43
+Defensive bot      CNN + LSTM    100.0%      40.9       0.79
 ```
+
+> **Note on Random agent:** The random bot rarely closes distance, so fights
+> often don't start. This is a property of the opponent, not the AI — the
+> aggressive and defensive results are the meaningful benchmark.
 
 ---
 
@@ -202,6 +210,9 @@ Defensive bot      CNN + LSTM     67.0%      44.2       1.13
 
 ```bash
 python game/play.py
+```
+```bash
+python game/play.py --checkpoint checkpoints/cnn_rl_best.pt
 ```
 
 **Controls:**
@@ -236,16 +247,19 @@ python game/play.py --temperature 1.5   # relaxed
 
 ## Evaluation metrics summary
 
-| Model     | Metric          | What it measures                        |
-|-----------|-----------------|------------------------------------------|
-| LSTM      | F1 macro        | Equal-weight accuracy across all 8 moves |
-| LSTM      | AUC per class   | ROC curve area for each move class       |
-| LSTM      | Confusion matrix| Which moves get confused                 |
-| CNN       | F1 weighted     | Counter-action accuracy (action-weighted)|
-| System    | Win rate        | End-to-end performance vs 3 opponents    |
-| System    | Avg HP left     | Dominance margin per win                 |
-| System    | Latency (ms)    | Inference speed (must be < 16ms for 60fps)|
-| Ablation  | Δ win rate      | CNN+LSTM improvement over CNN alone      |
+| Model     | Metric          | Result     | What it measures                        |
+|-----------|-----------------|------------|------------------------------------------|
+| LSTM      | F1 macro        | 0.373      | Equal-weight accuracy across all 8 moves |
+| LSTM      | Test accuracy   | 46.6%      | Frame-level move prediction              |
+| LSTM      | AUC per class   | See plots  | ROC curve area for each move class       |
+| CNN       | F1 macro        | 0.179      | Counter-action accuracy (10 classes)     |
+| CNN       | Test accuracy   | 21.7%      | Supervised counter-action classification |
+| RL        | Agent 1 win rate| 72.2%      | Self-play performance after 2000 episodes|
+| RL        | Draw rate       | 4.7%       | Indecisive outcomes                      |
+| System    | Win vs Aggr.    | 95% (LSTM) | End-to-end vs aggressive opponent        |
+| System    | Win vs Def.     | 100%       | End-to-end vs defensive opponent         |
+| System    | Latency (ms)    | &lt;1ms    | Inference speed (well within 16ms/frame) |
+| Ablation  | Δ win rate      | +3%        | CNN+LSTM improvement over CNN alone      |
 
 ---
 
@@ -258,26 +272,34 @@ export SDL_VIDEODRIVER=offscreen
 Or use `render_mode=None` for training — the game requires a display.
 
 **`ModuleNotFoundError`**
-Make sure you're running commands from the `fighter_ai/` directory, not a
-subdirectory.
+Make sure you're running commands from the project root directory, not a subdirectory.
+
+**`pip` not recognised on Windows**
+Use `py -3.12 -m pip install ...` instead. If Python itself isn't found, reinstall Python 3.12 from python.org and tick "Add to PATH" during installation.
+
+**Python 3.14 / `distutils` error with pygame**
+Python 3.14 removed `distutils` which pygame requires. Install Python 3.12 and use `py -3.12` to run all commands.
+
+**RTX 40/50 series GPU not detected (`cuda` shows False)**
+These GPUs require CUDA 12.8+. Install PyTorch with `--index-url https://download.pytorch.org/whl/cu128` — not `cu121`.
 
 **LSTM val F1 stuck below 0.15**
-Increase data: `--matches 500`. Also check class distribution printed
-at the end of collect_data.py — if IDLE > 60%, the weighting is working
-but you may need more aggressive bots.
+Increase data: `--matches 500`. Also check class distribution printed at the end of `collect_data.py` — if IDLE > 60%, the weighting is working but you may need more aggressive bots.
+
+**RL training all draws at episode 100+**
+Check that both `fighter_env.py` and `train_rl.py` are the latest versions — the env `step()` must accept a `p1_action` argument, and `train_rl.py` must pass both agents' actions to it.
 
 **OOM (out of memory)**
 Reduce `--batch` to 64 or 128.
 
 **Game is too fast/slow**
-FPS is set to 60 in `env/fighter_env.py` (constant `FPS`). Lower it for
-slower machines.
+FPS is set to 60 in `env/fighter_env.py` (constant `FPS`). Lower it for slower machines.
 
 ---
 
 ## HD criteria mapping
 
-| HD criterion                    | Where it appears in this project              |
+| HD criterion                     | Where it appears in this project              |
 |----------------------------------|-----------------------------------------------|
 | Portfolio                        | Document each training run in your portfolio  |
 | Code beyond tutorials            | BiLSTM, 1D CNN, staged training, temperature  |
@@ -285,4 +307,4 @@ slower machines.
 | Excellent evaluation + metrics   | F1, AUC, confusion matrix, ablation study     |
 | Code understanding               | Every architectural choice is documented here |
 | Final video                      | Record `play.py` with HUD visible             |
-| Robot simulation                 | The AI fighter *is* the simulated robot agent |
+| Robot                            | The AI fighter waves servo flag when it looses|
